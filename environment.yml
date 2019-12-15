@@ -1,0 +1,9 @@
+name: local-geocode
+channels:
+  - defaults
+dependencies:
+  - pandas
+  - tqdm
+  - python=3.6
+  - pip:
+    - flashtext
