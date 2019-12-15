@@ -8,7 +8,7 @@ python main.py <command> [<args>]
 
 Available commands:
   prepare          Parses raw data from geonames into pickles
-  geocode          Runs geocoding on input text
+  decode           Runs geocoding on input text
 """
 
 class ArgParseDefault(argparse.ArgumentParser):
