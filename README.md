@@ -9,11 +9,12 @@ This is a very simple geocoding library which runs fully locally (without callin
 git clone git@github.com:mar-muel/local-geocode.git && cd local-geocode
 ```
 2) Install dependencies
-You can either install dependencies by using conda:
+
+Install dependencies with conda:
 ```
 conda env create -f environment.yml
 ```
-(Or install them manually using `pip install pandas tqdm flashtext`)
+(Or using `pip install pandas tqdm flashtext`)
 
 3) Download data from geonames.org by running
 ```
@@ -31,7 +32,7 @@ python main.py prepare --with-altnames
 ```
 The resulting pickle files are about ~50MB in size.
 
-5) Now we should be all set! We can test it via CLI:
+5) Now we should be all set! :raised_hands: We can test it via CLI:
 ```
 python main.py decode -i 'I live both in New York and in New Delhi.'
 ```
