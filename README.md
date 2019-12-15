@@ -34,6 +34,9 @@ The resulting pickle files are about ~50MB in size.
 5) Now we should be all set! We can test it via CLI:
 ```
 python main.py decode -i 'I live both in New York and in New Delhi.'
+```
+Output:
+```
 [{'name': 'New Delhi', 'country_code': 'IN', 'longitude': 77.22539, 'latitude': 28.635679999999997}, {'name': 'New York', 'country_code': 'US', 'longitude': -75.4999, 'latitude': 43.00035}]
 ```
 Among other parameters, the output will be sorted by population size (see below).
