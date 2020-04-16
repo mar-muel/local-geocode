@@ -55,9 +55,11 @@ mydata = ['I live both in new york and in New Delhi.', 'Zürich, Switzerland']
 for input_text in mydata:
   locations = gc.decode(input_text)
   print(locations)
-```
 
-(See `test.py`)
+#[{'name': 'New Delhi', 'country_code': 'IN', 'longitude': 77.22539, 'latitude': 28.635679999999997}, {'name': 'New York', 'country_code': 'US', 'longitude': -75.4999, 'latitude': 43.00035}]
+#[{'name': 'Zürich', 'country_code': 'CH', 'longitude': 8.530710000000001, 'latitude': 47.38283}, {'name': 'Switzerland', 'country_code': 'CH', 'longitude': 8.01427, 'latitude': 47.00016}]
+```
+The easiest way to integrate `local-geocode` to your project is to simply copy the folder `geocode` into your project root. After this you should be able to use the code as described above.
 
 # Sorting of output
 In case multiple locations could be detected the output will be sorted by the following priorities:
