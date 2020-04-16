@@ -60,7 +60,7 @@ class Geocode():
         return cache_path
 
     def get_cache_path(self, name):
-        return os.path.join('.', 'data', name)
+        return os.path.join('/', 'tmp', name)
 
     def get_geonames_pickle(self):
         with open(self.geonames_pickle_path, 'rb') as f:

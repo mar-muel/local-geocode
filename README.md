@@ -29,7 +29,7 @@ If you want to include alternate names (such as L.A. for Los Angeles) make sure 
 ```
 python main.py prepare --with-altnames
 ```
-The resulting pickle files are about ~50MB in size.
+The resulting pickle files are about ~50MB in size and will be stored to you `/tmp` directory.
 
 5) Now we should be all set! We can test it via CLI:
 ```
