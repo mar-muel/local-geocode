@@ -9,11 +9,12 @@ This is a very simple geocoding library which runs fully locally (without callin
 git clone git@github.com:mar-muel/local-geocode.git && cd local-geocode
 ```
 2) Install dependencies
-You can either install dependencies by using conda:
+
+Install dependencies with conda:
 ```
 conda env create -f environment.yml
 ```
-(Or install them manually using `pip install pandas tqdm flashtext`)
+(Or using `pip install pandas tqdm flashtext`)
 
 3) Download data from geonames.org by running
 ```
@@ -31,7 +32,7 @@ python main.py prepare --with-altnames
 ```
 The resulting pickle files are about ~50MB in size and will be stored to you `/tmp` directory.
 
-5) Now we should be all set! We can test it via CLI:
+5) Now we should be all set! :raised_hands: We can test it via CLI:
 ```
 python main.py decode -i 'I live both in New York and in New Delhi.'
 ```
@@ -60,9 +61,9 @@ for input_text in mydata:
 
 # Sorting of output
 In case multiple locations could be detected the output will be sorted by the following priorities:
-* Places (such as cities) are prioritized over administrative areas (such as countries or provinces
+* Places (such as cities) are prioritized over administrative areas (such as countries or provinces)
 * Places: sorted by their importance w.r.t. to whether they are the seat of a administrative region, also see https://www.geonames.org/export/codes.html
 * Admin areas: Sorted like so ADM2 > ADM1 > ADM3 > ADM4 (second order devisions are prioritized over countries, afterward priority decreases by admin level)
-* Within feature class prioritize by population size
+* Within each class prioritize by locations with higher population size
 
-Note that the prioritization is not perfect. If accuracy is important to you may want to use an API-based library such as `geopy` (https://pypi.org/project/geopy/)
+Note that the prioritization is not perfect. If accuracy is important to you, you may want to use an API-based library such as `geopy` (https://pypi.org/project/geopy/)
