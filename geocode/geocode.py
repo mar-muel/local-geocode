@@ -8,6 +8,9 @@ from flashtext import KeywordProcessor
 import joblib
 import multiprocessing
 import numpy as np
+import urllib.request
+import zipfile
+
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)-5.5s] [%(name)-12.12s]: %(message)s')
 log = logging.getLogger(__name__)
@@ -32,18 +35,36 @@ class Geocode():
         self.geo_data = self.get_geonames_pickle()
 
     def get_geonames_data(self):
-        geonames_data_path = os.path.join('.', 'data', 'allCountries.txt')
+        geonames_data_path = self.get_cache_path('allCountries.txt')
         if not os.path.isfile(geonames_data_path):
-            raise FileNotFoundError(f'File {geonames_data_path} is not present! Download it first from https://download.geonames.org/export/dump/allCountries.zip')
+            # download file
+            url = 'https://download.geonames.org/export/dump/allCountries.zip'
+            log.info(f'Downloading data from {url}')
+            geonames_data_path_zip = self.get_cache_path('allCountries.zip')
+            urllib.request.urlretrieve(url, geonames_data_path_zip)
+            log.info(f'... done')
+            log.info('Extracting data...')
+            # extract
+            with zipfile.ZipFile(geonames_data_path_zip, 'r') as f:
+                f.extractall(self.tmp_dir)
+            log.info('...done')
+            # remove zip file
+            os.remove(geonames_data_path_zip)
+        log.info(f'Reading data from {geonames_data_path}...')
         dtypes = {'name': str, 'latitude': float, 'longitude': float, 'country_code': str, 'population': int, 'feature_code': str, 'alternatenames': str}
         geonames_columns = ['geonameid', 'name', 'asciiname', 'alternatenames', 'latitude', 'longitude', 'feature_class', 'feature_code', 'country_code', 'cc2', 'admin1', 'admin2', 'admin3', 'admin4', 'population', 'elevation', 'dem', 'timezone', 'modification_date']
         df = pd.read_csv(geonames_data_path, names=geonames_columns, sep='\t', dtype=dtypes, usecols=dtypes.keys())
         return df
 
     def get_feature_names_data(self):
-        feature_code_path = os.path.join('.', 'data', 'featureCodes_en.txt')
+        feature_code_path = self.get_cache_path('featureCodes_en.txt')
         if not os.path.isfile(feature_code_path):
-            raise FileNotFoundError(f'File {feature_code_path} is not present! Download it first from https://download.geonames.org/export/dump/featureCodes_en.txt')
+            # download file
+            url = 'https://download.geonames.org/export/dump/featureCodes_en.txt'
+            log.info(f'Downloading data from {url}')
+            urllib.request.urlretrieve(url, feature_code_path)
+            log.info(f'... done')
+        log.info(f'Reading data from {feature_code_path}...')
         df_features = pd.read_csv(feature_code_path, sep='\t', names=['feature_code', 'description-short', 'description-long'])
         df_features['feature_code_class'] = ''
         df_features.loc[:, ['feature_code_class', 'feature_code']] = df_features.feature_code.str.split('.', expand=True).values
@@ -59,8 +80,14 @@ class Geocode():
         cache_path = self.get_cache_path(f'geonames_keyword_processor.pkl')
         return cache_path
 
+    @property
+    def tmp_dir(self):
+        return os.path.join('/', 'tmp', 'local_geocode')
+
     def get_cache_path(self, name):
-        return os.path.join('/', 'tmp', name)
+        if not os.path.isdir(self.tmp_dir):
+            os.makedirs(self.tmp_dir)
+        return os.path.join(self.tmp_dir, name)
 
     def get_geonames_pickle(self):
         with open(self.geonames_pickle_path, 'rb') as f:
