@@ -4,6 +4,8 @@ This is a very simple geocoding library which runs fully locally (without callin
 
 This project is mainly used in the context of decoding data from the "user.location" field of tweets but it can in principle be used on any address/location raw text field. Note that if you need very precise geographical information it is better to use one of the many available APIs. By default this repo only detects places with more than 30k inhabitants.
 
+I have compared the predictions by local-geocode with geopy for Twitter user locations. It seems overall local-geocode is better for this specific use case. Check it out [here](benchmark/benchmark.md).
+
 # Usage
 
 1) Clone this repo
