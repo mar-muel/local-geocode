@@ -2,6 +2,8 @@
 
 This is a very simple geocoding library which runs fully locally (without calling any APIs) and has therefore no limits in terms of processing. It runs very fast due to using an efficient in-memory datastructure called [Flashtext](https://github.com/vi3k6i5/flashtext). It uses data from http://www.geonames.org/.
 
+This project is mainly used in the context of decoding data from the "user.location" field of tweets but it can in principle be used on any address/location raw text field. Note that if you need very precise geographical information it is better to use one of the many available APIs. By default this repo only detects places with more than 30k inhabitants.
+
 # Usage
 
 1) Clone this repo
