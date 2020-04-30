@@ -1,3 +1,4 @@
 pandas>=1
 tqdm
 flashtext
+joblib

@@ -34,9 +34,10 @@ class ArgParse(object):
         parser = ArgParseDefault(description='Prepares raw data from geonames and outputs pickles')
         parser.add_argument('--min_population_cutoff', default=30000, required=False, type=int, help='Exclude all places below this cutoff')
         parser.add_argument('--large_city_population_cutoff', default=200000, required=False, type=int, help='Cities above this population will appear with higher in priority')
+        parser.add_argument('--recompute', default=False, action='store_true', help='Recompute pickles')
         args = parser.parse_args(sys.argv[2:])
         geocode = Geocode(min_population_cutoff=args.min_population_cutoff, large_city_population_cutoff=args.large_city_population_cutoff)
-        geocode.prepare()
+        geocode.prepare(recompute=args.recompute)
 
     def decode(self):
         parser = ArgParseDefault(description='Split annotated data into training and test data set')
