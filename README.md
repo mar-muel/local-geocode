@@ -65,9 +65,30 @@ for input_text in mydata:
 ```
 The easiest way to integrate `local-geocode` to your project is to simply copy the folder `geocode` into your project root. After this you should be able to use the code as described above.
 
+# Parallelized
+If you have a large number of texts to decode, it might make sense to use `decode_parallel` which runs decode in parallel:
+```python
+gc = Geocode()
+
+gc.prepare() # compute pickles if not already present
+
+gc.init()  # load pickles
+
+# a large number of items
+mydata = ['Tel Aviv', ..,]
+num_cpus = None # By default use all CPUs
+
+locations = gc.decode_parallel(mydata, num_cpus=num_cpus)
+print(locations)
+```
+
+
 # Configuration
 The `prepare()` function accepts two parameters
 * `min_population_cutoff` (default: 30k): Cities below this population size are excluded
 * `large_city_population_cutoff` (default: 200k): Cities with a population size larger than this will be prioritized. Example: "New York, USA" will result in "New York" as the first result, and not "USA".
 
-Note that the prioritization is not always perfect.
+Note that the prioritization is not always perfect. In general the prioritization is as follows:
+1) Large cities
+2) Administrative areas
+3) Smaller places
