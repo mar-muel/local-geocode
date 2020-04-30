@@ -2,7 +2,7 @@
 
 This comparison shows how local-geocode and geopy predict user locations provided by Twitter users. 
 
-Local-geocode agrees on the country-level in about 51% of the tested cases with geopy (n=50k). The below samples shows the top 1000 disagreements between geopy and local-geocde.
+Local-geocode agrees on the country-level in about 51% of the tested cases with geopy (n=50k). The below samples shows the top 150 disagreements between geopy and local-geocde.
 
 ## Main take-aways
 * Local-geocde does better at imaginary names which don't exist or are abstract
