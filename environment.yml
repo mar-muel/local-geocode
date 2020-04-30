@@ -1,8 +1,8 @@
-name: local-geocode
+name: local-geocode-2
 channels:
   - defaults
 dependencies:
-  - pandas
+  - pandas>=1.0
   - tqdm
   - python=3.6
   - pip:
