@@ -16,11 +16,11 @@ conda env create -f environment.yml
 ```
 (Or using `pip install -r requirements.txt`)
 
-3) Next we will download data from geonames.org to `/tmp/geocode_local` and create the data structures needed to efficiently decode locations from input text. This only needs to be run once!
+3) Next we will download data from geonames.org and create the data structures needed to efficiently decode locations from input text. This only needs to be run once!
 ```bash
 python main.py prepare
 ```
-The resulting 2 pickle files are about ~50MB in size and will be stored to your `/tmp` directory.
+The resulting 2 pickle files are about ~50MB in size and will be stored under `/tmp/geocode_local`.
 
 4) Now we should be all set! :raised_hands: We can test it via CLI:
 ```bash
