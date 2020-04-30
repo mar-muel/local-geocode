@@ -34,7 +34,7 @@ class ArgParse(object):
         parser = ArgParseDefault(description='Prepares raw data from geonames and outputs pickles')
         parser.add_argument('--with-altnames', dest='with_altnames', action='store_true', default=False, required=False, help='Include all alternative names')
         args = parser.parse_args(sys.argv[2:])
-        geocode = Geocode(with_altnames=args.with_altnames)
+        geocode = Geocode()
         geocode.prepare()
 
     def decode(self):
@@ -42,7 +42,7 @@ class ArgParse(object):
         parser.add_argument('-i', '--input', dest='input_text', type=str, required=True, help='Input text to geocode')
         parser.add_argument('--with-altnames', dest='with_altnames', action='store_true', default=False, required=False, help='Include all alternative names')
         args = parser.parse_args(sys.argv[2:])
-        geocode = Geocode(with_altnames=args.with_altnames)
+        geocode = Geocode()
         geocode.init()
         decoded = geocode.decode(args.input_text)
         print(decoded)

@@ -5,6 +5,9 @@ import logging
 from tqdm import tqdm
 import sys
 from flashtext import KeywordProcessor
+import joblib
+import multiprocessing
+import numpy as np
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)-5.5s] [%(name)-12.12s]: %(message)s')
 log = logging.getLogger(__name__)
@@ -18,10 +21,11 @@ class Geocode():
     - https://download.geonames.org/export/dump/featureCodes_en.txt
     """
 
-    def __init__(self, with_altnames=False):
-        self.with_altnames = with_altnames
+    def __init__(self, min_population_cutoff=30000, large_city_population_cutoff=200000):
         self.kp = None
         self.geo_data = None
+        self.min_population_cutoff = min_population_cutoff
+        self.large_city_population_cutoff = large_city_population_cutoff
 
     def init(self):
         self.kp = self.get_keyword_processor_pickle()
@@ -31,9 +35,7 @@ class Geocode():
         geonames_data_path = os.path.join('.', 'data', 'allCountries.txt')
         if not os.path.isfile(geonames_data_path):
             raise FileNotFoundError(f'File {geonames_data_path} is not present! Download it first from https://download.geonames.org/export/dump/allCountries.zip')
-        dtypes = {'name': str, 'latitude': float, 'longitude': float, 'country_code': str, 'population': int, 'feature_code': str}
-        if self.with_altnames:
-            dtypes['alternatenames'] = str
+        dtypes = {'name': str, 'latitude': float, 'longitude': float, 'country_code': str, 'population': int, 'feature_code': str, 'alternatenames': str}
         geonames_columns = ['geonameid', 'name', 'asciiname', 'alternatenames', 'latitude', 'longitude', 'feature_class', 'feature_code', 'country_code', 'cc2', 'admin1', 'admin2', 'admin3', 'admin4', 'population', 'elevation', 'dem', 'timezone', 'modification_date']
         df = pd.read_csv(geonames_data_path, names=geonames_columns, sep='\t', dtype=dtypes, usecols=dtypes.keys())
         return df
@@ -49,14 +51,12 @@ class Geocode():
 
     @property
     def geonames_pickle_path(self):
-        with_altnames_tag = '_with_altnames' if self.with_altnames else ''
-        cache_path = self.get_cache_path(f'geonames{with_altnames_tag}.pkl')
+        cache_path = self.get_cache_path(f'geonames.pkl')
         return cache_path
 
     @property
     def keyword_processor_pickle_path(self):
-        with_altnames_tag = '_with_altnames' if self.with_altnames else ''
-        cache_path = self.get_cache_path(f'geonames_keyword_processor_{with_altnames_tag}.pkl')
+        cache_path = self.get_cache_path(f'geonames_keyword_processor.pkl')
         return cache_path
 
     def get_cache_path(self, name):
@@ -73,44 +73,77 @@ class Geocode():
         return kp
 
     def create_geonames_pickle(self):
+        """Create list of place/country data from geonames data and sort according to priorities"""
+        def is_ascii(s):
+            try:
+                s.encode(encoding='utf-8').decode('ascii')
+            except UnicodeDecodeError:
+                return False
+            else:
+                return True
         log.info('Transforming geonames data...')
         log.info('Reading geo data...')
         df = self.get_geonames_data()
         # select places with a population greater zero
-        df = df[df.population > 0]
+        df = df[(df.population > 0) | (df.feature_code == 'PCLI')]
         # get rid of administrative zones without country codes (e.g. "The Commonwealth")
         df = df[~df.country_code.isnull()]
         # select places with feature class A (admin) and P (place)
         df_features = self.get_feature_names_data()
         df = df.merge(df_features, on='feature_code', how='left')
         df = df[df.feature_code_class.isin(['A', 'P'])]
-        # generate list of priorities by ID. Levels of priority:
-        # - Places are given priority over admin areas
-        # - Among places, sort by "importance of a place" (PPL > PPLA > PPLA2, etc.)
-        # - Among admin give priority to second order divisions over country names, after that priority decreases with area size (ADM2 > ADM1 > ADM3 > ADM4),
-        # - Among feature class prioritize by population size
+        # Filter out everything below a certain popluation
+        df = df[df['population'] > self.min_population_cutoff]
+        # expand alternate names
+        df.loc[:, 'alternatenames'] = df.alternatenames.str.split(',')
+        df['is_altname'] = False
+        _df = df.explode('alternatenames')
+        _df['name'] = _df['alternatenames']
+        _df['is_altname'] = True
+        df = pd.concat([df, _df])
+        # Remove all names that are floats/ints
+        df['is_str'] = df.name.apply(lambda s: isinstance(s, str))
+        df = df[df['is_str']]
+        # Levels of priority:
+        # 1) Prioritize large cities (population size > large_city_population_cutoff)
+        # 2) Admin areas
+        # 3) Places
+        # Within each group we will sort according to population size
         log.info('Sorting by priority...')
-        feature_code_priorities = ['PPL', 'PPLA', 'PPLA2', 'PPLA3', 'PPLA4', 'PPLA5', 'PPLC', 'PPLCH', 'PPLF', 'PPLG', 'PPLH', 'PPLL',
-                'PPLQ', 'PPLR', 'PPLS', 'PPLW', 'PPLX', 'STLMT', 'ADM2', 'ADM2H', 'ADM1', 'ADM1H', 'ADM3', 'ADM3H', 'ADM4', 'ADM4H',
-                'ADM5', 'ADM5H', 'ADMD', 'ADMDH', 'LTER', 'PCL', 'PCLD', 'PCLF', 'PCLH', 'PCLI', 'PCLIX', 'PCLS', 'PRSH', 'TERR', 'ZN', 'ZNB']
-        feature_code_priorities = {k: i for i, k in enumerate(feature_code_priorities)}
-        df['priority'] = df.feature_code.apply(lambda code: feature_code_priorities[code])
+        feature_code_priorities = ['A', 'P']
+        df.loc[(df.population > self.large_city_population_cutoff) & (df.feature_code_class == 'P') & (~df.is_altname), 'priority'] = 0
+        feature_code_priorities = {k: i+1 for i, k in enumerate(feature_code_priorities)}
+        df['priority'] = df.feature_code_class.apply(lambda code: feature_code_priorities[code])
+        # Only allow 2 character names in specific cases
+        # - Name is non-ascii (e.g. Chinese characters)
+        # - Is an alternative name for a country (e.g. UK)
+        # - Is a US state or Canadian province
+        df['is_ascii'] = df.name.apply(is_ascii)
+        df['is_country'] = df.feature_code.str.startswith('PCL')
+        df = df[
+                (~df.is_ascii) | 
+                (df.name.str.len() > 2) | 
+                ((df.name.str.len() == 2) & (df.country_code == 'US')) |
+                ((df.name.str.len() == 2) & (df.country_code == 'CA')) |
+                ((df.name.str.len() == 2) & (df.is_country))
+                ]
+        # add "US" manually since it's missing in geonames
+        row_usa = df[df.is_country & (df.name == 'USA')].iloc[0]
+        row_usa['name'] = 'US'
+        df = df.append(row_usa)
+        # sort by priorities and drop name duplicates (this way we will keep only the high priority elements)
         df.sort_values(by=['priority', 'population'], ascending=[True, False], inplace=True)
-        geo_coords = []
-        # Build geo data array. Position i in list corresponds to priority
-        log.info('Build coordinate data list...')
-        for _, row in tqdm(df.iterrows(), total=len(df)):
-            geo_coords.append([row['name'], row['country_code'], row['longitude'], row['latitude']])
-            if self.with_altnames:
-                if isinstance(row['alternatenames'], str):
-                    altnames = row['alternatenames'].split(',')
-                    for altname in altnames:
-                        geo_coords.append([altname, row['country_code'], row['longitude'], row['latitude']])
+        df['name_lower'] = df.name.str.lower()
+        df = df.drop_duplicates('name_lower', keep='first')
+        log.info(f'... collected a total of {len(df):,} names of places and countries')
+        # Build geo data array. Position in list corresponds to priority
         log.info('Writing geonames data to pickle...')
+        df = df[['name', 'country_code', 'longitude', 'latitude']].values.tolist()
         with open(self.geonames_pickle_path, 'wb') as f:
-            pickle.dump(geo_coords, f)
+            pickle.dump(df, f)
 
     def create_keyword_processor_pickle(self):
+        """Builds trie lookup data structure for name lookup. This maps input names to position IDs."""
         geo_data = self.get_geonames_pickle()
         kp = KeywordProcessor()
         log.info('Adding terms to keyword processor (building trie)...')
@@ -122,9 +155,7 @@ class Geocode():
             pickle.dump(kp, f)
 
     def prepare(self, recompute=False):
-        """
-        Transform raw data of country names into a list of coordinates (where the position i corresponds to the priority i of the element)
-        """
+        """Prepare data pickles"""
         # geonames data
         if os.path.isfile(self.geonames_pickle_path) and not recompute:
             log.info('Pickled geonames file is already present!')
@@ -142,6 +173,25 @@ class Geocode():
         if len(matches) == 0:
             return []
         # sort by priorities
-        matches = sorted([int(m) for m in matches])
+        matches = sorted(list(set(int(m) for m in matches)))
         field_names = ['name', 'country_code', 'longitude', 'latitude']
         return [dict(zip(field_names, self.geo_data[m])) for m in matches]
+
+    def decode_parallel(self, input_texts, num_cpus=None):
+        """Run decode in parallel"""
+        def process_chunk(chunk, gc):
+            gc.init()  # load pickles
+            results = []
+            for item in tqdm(chunk, total=len(chunk)):
+                res = gc.decode(item)
+                results.append(res)
+            return results
+        if num_cpus is None:
+            num_cpus = max(multiprocessing.cpu_count() - 1, 1)
+        else:
+            num_cpus = max(num_cpus, 1)
+        log.info(f'Running decode in parallel with {num_cpus} cores')
+        process_chunk_delayed = joblib.delayed(process_chunk)
+        result = joblib.Parallel(n_jobs=num_cpus)(process_chunk_delayed(chunk, self) for chunk in tqdm(np.array_split(input_texts, num_cpus)))
+        return [r for res in result for r in res]
+
