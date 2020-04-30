@@ -88,7 +88,11 @@ The `prepare()` function accepts two parameters
 * `min_population_cutoff` (default: 30k): Cities below this population size are excluded
 * `large_city_population_cutoff` (default: 200k): Cities with a population size larger than this will be prioritized. Example: "New York, USA" will result in "New York" as the first result, and not "USA".
 
+If you change these values, make sure to add the recompute flag `python main.py prepare --recompute` or `gc.prepare(recompute=True)`.
+
 Note that the prioritization is not always perfect. In general the prioritization is as follows:
 1) Large cities
 2) Administrative areas
 3) Smaller places
+
+Please open an issue, if you run into problems!
