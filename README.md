@@ -14,7 +14,7 @@ Install dependencies with conda:
 ```
 conda env create -f environment.yml
 ```
-(Or using `pip install pandas tqdm flashtext`)
+(Or using `pip install -r requirements.txt`)
 
 3) Download data from geonames.org by running
 ```
@@ -26,46 +26,48 @@ Note that this will take approx 1.4GB of disk space!
 ```
 python main.py prepare
 ```
-If you want to include alternate names (such as L.A. for Los Angeles) make sure to add the `--with-altnames` flag:
-```
-python main.py prepare --with-altnames
-```
-The resulting pickle files are about ~50MB in size and will be stored to you `/tmp` directory.
+The resulting 2 pickle files are about ~50MB in size and will be stored to your `/tmp` directory.
 
 5) Now we should be all set! :raised_hands: We can test it via CLI:
 ```
-python main.py decode -i 'I live both in New York and in New Delhi.'
+python main.py decode -i "new delhi, new york, zurich"
 ```
 Output:
+```python
+[
+  {'name': 'New York', 'country_code': 'US', 'longitude': -75.4999, 'latitude': 43.00035},
+  {'name': 'Zurich', 'country_code': 'CH', 'longitude': 8.66667, 'latitude': 47.41667},
+  {'name': 'New Delhi', 'country_code': 'IN', 'longitude': 77.22539, 'latitude': 28.635679999999997}
+]
+
 ```
-[{'name': 'New Delhi', 'country_code': 'IN', 'longitude': 77.22539, 'latitude': 28.635679999999997}, {'name': 'New York', 'country_code': 'US', 'longitude': -75.4999, 'latitude': 43.00035}]
-```
-Among other parameters, the output will be sorted by population size (see below).
 
 # Usage in code
 Using the CLI for decoding is slow since it has to load the pickles on every call. Use the script as follows:
 ```python
 from geocode.geocode import Geocode
 
-gc = Geocode(with_altnames=False)
+gc = Geocode()
+
+gc.prepare() # compute pickles if not already present
+
 gc.init()  # load pickles
 
-mydata = ['I live both in new york and in New Delhi.', 'Zürich, Switzerland']
+mydata = ['Tel Aviv', 'busan', 'chattanooga']
 
 for input_text in mydata:
   locations = gc.decode(input_text)
   print(locations)
 
-#[{'name': 'New Delhi', 'country_code': 'IN', 'longitude': 77.22539, 'latitude': 28.635679999999997}, {'name': 'New York', 'country_code': 'US', 'longitude': -75.4999, 'latitude': 43.00035}]
-#[{'name': 'Zürich', 'country_code': 'CH', 'longitude': 8.530710000000001, 'latitude': 47.38283}, {'name': 'Switzerland', 'country_code': 'CH', 'longitude': 8.01427, 'latitude': 47.00016}]
+# [{'name': 'Tel Aviv', 'country_code': 'IL', 'longitude': 34.79995, 'latitude': 32.084140000000005}]
+# [{'name': 'Busan', 'country_code': 'KR', 'longitude': 129.05, 'latitude': 35.13333}]
+# [{'name': 'Chattanooga', 'country_code': 'US', 'longitude': -85.30968, 'latitude': 35.045629999999996}]
 ```
 The easiest way to integrate `local-geocode` to your project is to simply copy the folder `geocode` into your project root. After this you should be able to use the code as described above.
 
-# Sorting of output
-In case multiple locations could be detected the output will be sorted by the following priorities:
-* Places (such as cities) are prioritized over administrative areas (such as countries or provinces)
-* Places: sorted by their importance w.r.t. to whether they are the seat of a administrative region, also see https://www.geonames.org/export/codes.html
-* Admin areas: Sorted like so ADM2 > ADM1 > ADM3 > ADM4 (second order devisions are prioritized over countries, afterward priority decreases by admin level)
-* Within each class prioritize by locations with higher population size
+# Configuration
+The `prepare()` function accepts two parameters
+* `min_population_cutoff` (default: 30k): Cities below this population size are excluded
+* `large_city_population_cutoff` (default: 200k): Cities with a population size larger than this will be prioritized. Example: "New York, USA" will result in "New York" as the first result, and not "USA".
 
-Note that the prioritization is not perfect. If accuracy is important to you, you may want to use an API-based library such as `geopy` (https://pypi.org/project/geopy/)
+Note that the prioritization is not always perfect.
