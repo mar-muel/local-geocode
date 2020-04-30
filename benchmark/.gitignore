@@ -1,3 +1,4 @@
-benchmark.py
+*.py
 *.csv
 *.pickle
+

@@ -142,9 +142,9 @@ class Geocode():
         # Within each group we will sort according to population size
         log.info('Sorting by priority...')
         feature_code_priorities = ['A', 'P']
-        df.loc[(df.population > self.large_city_population_cutoff) & (df.feature_code_class == 'P') & (~df.is_altname), 'priority'] = 0
         feature_code_priorities = {k: i+1 for i, k in enumerate(feature_code_priorities)}
         df['priority'] = df.feature_code_class.apply(lambda code: feature_code_priorities[code])
+        df.loc[(df.population > self.large_city_population_cutoff) & (df.feature_code_class == 'P') & (~df.is_altname), 'priority'] = 0
         # Only allow 2 character names in specific cases
         # - Name is non-ascii (e.g. Chinese characters)
         # - Is an alternative name for a country (e.g. UK)
@@ -217,10 +217,14 @@ class Geocode():
                 res = gc.decode(item)
                 results.append(res)
             return results
+
         if num_cpus is None:
             num_cpus = max(multiprocessing.cpu_count() - 1, 1)
         else:
             num_cpus = max(num_cpus, 1)
+        # remove pickles from memory
+        self.kp = None
+        self.geo_data = None 
         log.info(f'Running decode in parallel with {num_cpus} cores')
         process_chunk_delayed = joblib.delayed(process_chunk)
         result = joblib.Parallel(n_jobs=num_cpus)(process_chunk_delayed(chunk, self) for chunk in tqdm(np.array_split(input_texts, num_cpus)))
