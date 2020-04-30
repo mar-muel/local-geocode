@@ -32,15 +32,15 @@ class ArgParse(object):
 
     def prepare(self):
         parser = ArgParseDefault(description='Prepares raw data from geonames and outputs pickles')
-        parser.add_argument('--with-altnames', dest='with_altnames', action='store_true', default=False, required=False, help='Include all alternative names')
+        parser.add_argument('--min_population_cutoff', default=30000, required=False, type=int, help='Exclude all places below this cutoff')
+        parser.add_argument('--large_city_population_cutoff', default=200000, required=False, type=int, help='Cities above this population will appear with higher in priority')
         args = parser.parse_args(sys.argv[2:])
-        geocode = Geocode()
+        geocode = Geocode(min_population_cutoff=args.min_population_cutoff, large_city_population_cutoff=args.large_city_population_cutoff)
         geocode.prepare()
 
     def decode(self):
         parser = ArgParseDefault(description='Split annotated data into training and test data set')
         parser.add_argument('-i', '--input', dest='input_text', type=str, required=True, help='Input text to geocode')
-        parser.add_argument('--with-altnames', dest='with_altnames', action='store_true', default=False, required=False, help='Include all alternative names')
         args = parser.parse_args(sys.argv[2:])
         geocode = Geocode()
         geocode.init()
