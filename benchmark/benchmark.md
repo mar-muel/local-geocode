@@ -5,8 +5,8 @@ This comparison shows how local-geocode and geopy predict user locations provide
 Local-geocode agrees on the country-level in about 51% of the tested cases with geopy (n=50k). The below samples shows the top 150 disagreements between geopy and local-geocde.
 
 ## Main take-aways
-* Local-geocde seems to do better overall, but this would need to be quantitatively assessed by human annotation.
-* Imaginary names are not predicted, whereas geopy tries to predict something in all cases
+* Local-gecode seems to do better on the country-level comparison, but this would need to be verified by comparison to a human annotated corpus.
+* Imaginary names are not predicted, whereas geopy assumes it is a real place and tries to predict something
 * Local-geocode supports country codes for semi-autonomous countries (e.g. Hong Kong)
 * Geopy does sometimes a better job when states are given (e.g. London, ON vs. London UK). However, geopy fails consistently in the case of "CA" for California 
 * An error rate of zero is tricky due to the many name collisions
