@@ -54,6 +54,8 @@ class Geocode():
         dtypes = {'name': str, 'latitude': float, 'longitude': float, 'country_code': str, 'population': int, 'feature_code': str, 'alternatenames': str}
         geonames_columns = ['geonameid', 'name', 'asciiname', 'alternatenames', 'latitude', 'longitude', 'feature_class', 'feature_code', 'country_code', 'cc2', 'admin1', 'admin2', 'admin3', 'admin4', 'population', 'elevation', 'dem', 'timezone', 'modification_date']
         df = pd.read_csv(geonames_data_path, names=geonames_columns, sep='\t', dtype=dtypes, usecols=dtypes.keys())
+        # remove data file
+        os.remove(geonames_data_path)
         return df
 
     def get_feature_names_data(self):
@@ -68,6 +70,8 @@ class Geocode():
         df_features = pd.read_csv(feature_code_path, sep='\t', names=['feature_code', 'description-short', 'description-long'])
         df_features['feature_code_class'] = ''
         df_features.loc[:, ['feature_code_class', 'feature_code']] = df_features.feature_code.str.split('.', expand=True).values
+        # remove data file
+        os.remove(feature_code_path)
         return df_features
 
     @property
