@@ -6,7 +6,7 @@ This is a very simple geocoding library which runs fully locally (without callin
 
 1) Clone this repo
 ```bash
-git clone git@github.com:mar-muel/local-geocode.git && cd local-geocode
+git clone https://github.com/mar-muel/local-geocode.git && cd local-geocode
 ```
 2) Install dependencies
 
@@ -16,19 +16,13 @@ conda env create -f environment.yml
 ```
 (Or using `pip install -r requirements.txt`)
 
-3) Download data from geonames.org by running
-```bash
-source download_data.sh
-```
-Note that this will take approx 1.4GB of disk space!
-
-4) Next we will create the data structures needed to efficiently decode locations from input text. This only needs to be run once!
+3) Next we will download data from geonames.org to `/tmp/geocode_local` and create the data structures needed to efficiently decode locations from input text. This only needs to be run once!
 ```bash
 python main.py prepare
 ```
 The resulting 2 pickle files are about ~50MB in size and will be stored to your `/tmp` directory.
 
-5) Now we should be all set! :raised_hands: We can test it via CLI:
+4) Now we should be all set! :raised_hands: We can test it via CLI:
 ```bash
 python main.py decode -i "new delhi, new york, zurich"
 ```
@@ -42,7 +36,7 @@ Output:
 
 ```
 
-# Usage in code
+# Usage in Python code
 Using the CLI for decoding is slow since it has to load the pickles on every call. Use the script as follows:
 ```python
 from geocode.geocode import Geocode
