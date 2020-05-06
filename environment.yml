@@ -1,4 +1,4 @@
-name: local-geocode-2
+name: local-geocode
 channels:
   - defaults
 dependencies:
