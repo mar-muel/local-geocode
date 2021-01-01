@@ -219,7 +219,7 @@ class Geocode():
         df.loc[(df.population > self.large_city_population_cutoff) & (df.feature_code_class == 'P') & (~df.is_altname), 'priority'] = 1
         # Sorting
         log.info('Sorting by priority...')
-        df.sort_values(by=['priority', 'admin_level', 'population'], ascending=[True, True, False], inplace=True)
+        df.sort_values(by=['priority', 'population'], ascending=[True, False], inplace=True)
         # drop name duplicates by keeping only the high priority elements
         df['name_lower'] = df.name.str.lower()
         df = df.drop_duplicates('name_lower', keep='first')
