@@ -29,6 +29,7 @@ class Geocode():
         self.geo_data = None
         self.min_population_cutoff = min_population_cutoff
         self.large_city_population_cutoff = large_city_population_cutoff
+        self.geo_data_field_names = ['name', 'country_code', 'longitude', 'latitude', 'admin_level', 'geoname_id', 'location_type', 'population']
 
     def init(self):
         self.kp = self.get_keyword_processor_pickle()
@@ -51,11 +52,11 @@ class Geocode():
             # remove zip file
             os.remove(geonames_data_path_zip)
         log.info(f'Reading data from {geonames_data_path}...')
-        dtypes = {'name': str, 'latitude': float, 'longitude': float, 'country_code': str, 'population': int, 'feature_code': str, 'alternatenames': str}
-        geonames_columns = ['geonameid', 'name', 'asciiname', 'alternatenames', 'latitude', 'longitude', 'feature_class', 'feature_code', 'country_code', 'cc2', 'admin1', 'admin2', 'admin3', 'admin4', 'population', 'elevation', 'dem', 'timezone', 'modification_date']
+        dtypes = {'name': str, 'latitude': float, 'longitude': float, 'country_code': str, 'population': int, 'feature_code': str, 'alternatenames': str, 'geoname_id': str}
+        geonames_columns = ['geoname_id', 'name', 'asciiname', 'alternatenames', 'latitude', 'longitude', 'feature_class', 'feature_code', 'country_code', 'cc2', 'admin1', 'admin2', 'admin3', 'admin4', 'population', 'elevation', 'dem', 'timezone', 'modification_date']
         df = pd.read_csv(geonames_data_path, names=geonames_columns, sep='\t', dtype=dtypes, usecols=dtypes.keys())
         # remove data file
-        os.remove(geonames_data_path)
+        # os.remove(geonames_data_path)
         return df
 
     def get_feature_names_data(self):
@@ -71,17 +72,17 @@ class Geocode():
         df_features['feature_code_class'] = ''
         df_features.loc[:, ['feature_code_class', 'feature_code']] = df_features.feature_code.str.split('.', expand=True).values
         # remove data file
-        os.remove(feature_code_path)
+        # os.remove(feature_code_path)
         return df_features
 
     @property
     def geonames_pickle_path(self):
-        cache_path = self.get_cache_path(f'geonames.pkl')
+        cache_path = self.get_cache_path(f'geonames_{self.min_population_cutoff}_{self.large_city_population_cutoff}.pkl')
         return cache_path
 
     @property
     def keyword_processor_pickle_path(self):
-        cache_path = self.get_cache_path(f'geonames_keyword_processor.pkl')
+        cache_path = self.get_cache_path(f'geonames_keyword_processor{self.min_population_cutoff}_{self.large_city_population_cutoff}.pkl')
         return cache_path
 
     @property
@@ -144,7 +145,14 @@ class Geocode():
         feature_code_priorities = ['A', 'P']
         feature_code_priorities = {k: i+1 for i, k in enumerate(feature_code_priorities)}
         df['priority'] = df.feature_code_class.apply(lambda code: feature_code_priorities[code])
-        df.loc[(df.population > self.large_city_population_cutoff) & (df.feature_code_class == 'P') & (~df.is_altname), 'priority'] = 0
+        # Remove altnames of admin levels and of places that are very small
+        df['keep'] = ~(
+            ((df.is_altname) & (df.feature_code_class == 'A')) |
+            ((df.is_altname) & (df.feature_code_class == 'P') & (df.population < 1000))
+            )
+        __import__('pdb').set_trace()
+        # df.loc[(df.population > self.large_city_population_cutoff) & (df.feature_code_class == 'P') & (~df.is_altname), 'priority'] = 0
+        df.loc[((df.population > self.large_city_population_cutoff) & (df.feature_code_class == 'P')), 'priority'] = 0
         # Only allow 2 character names in specific cases
         # - Name is non-ascii (e.g. Chinese characters)
         # - Is an alternative name for a country (e.g. UK)
@@ -167,9 +175,17 @@ class Geocode():
         df['name_lower'] = df.name.str.lower()
         df = df.drop_duplicates('name_lower', keep='first')
         log.info(f'... collected a total of {len(df):,} names of places and countries')
+        # set admin level
+        df['admin_level'] = None
+        df.loc[df.feature_code.isin(['PCLI', 'PCLD', 'PCLF', 'PCLS', 'PCLIX', 'PCLX', 'PCL']), 'admin_level'] = 0
+        for admin_level in range(1, 6):
+            df.loc[df.feature_code.isin([f'ADM{admin_level}', f'ADM{admin_level}H']), 'admin_level'] = admin_level
+        # set location_type
+        priority_to_location_type = {0: 'big_city', 1: 'admin', 2: 'place'}
+        df['location_type'] = df.priority.apply(lambda p: priority_to_location_type[p])
         # Build geo data array. Position in list corresponds to priority
         log.info('Writing geonames data to pickle...')
-        df = df[['name', 'country_code', 'longitude', 'latitude']].values.tolist()
+        df = df[self.geo_data_field_names].values.tolist()
         with open(self.geonames_pickle_path, 'wb') as f:
             pickle.dump(df, f)
 
@@ -205,8 +221,7 @@ class Geocode():
             return []
         # sort by priorities
         matches = sorted(list(set(int(m) for m in matches)))
-        field_names = ['name', 'country_code', 'longitude', 'latitude']
-        return [dict(zip(field_names, self.geo_data[m])) for m in matches]
+        return [dict(zip(self.geo_data_field_names, self.geo_data[m])) for m in matches]
 
     def decode_parallel(self, input_texts, num_cpus=None):
         """Run decode in parallel"""
@@ -229,4 +244,3 @@ class Geocode():
         process_chunk_delayed = joblib.delayed(process_chunk)
         result = joblib.Parallel(n_jobs=num_cpus)(process_chunk_delayed(chunk, self) for chunk in tqdm(np.array_split(input_texts, num_cpus)))
         return [r for res in result for r in res]
-
