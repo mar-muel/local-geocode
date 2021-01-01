@@ -10,6 +10,9 @@ import multiprocessing
 import numpy as np
 import urllib.request
 import zipfile
+import numpy as np
+import hashlib
+import getpass
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)-5.5s] [%(name)-12.12s]: %(message)s')
@@ -24,12 +27,15 @@ class Geocode():
     - https://download.geonames.org/export/dump/featureCodes_en.txt
     """
 
-    def __init__(self, min_population_cutoff=30000, large_city_population_cutoff=200000):
+    def __init__(self, min_population_cutoff=30000, large_city_population_cutoff=200000, location_types=None):
         self.kp = None
         self.geo_data = None
         self.min_population_cutoff = min_population_cutoff
         self.large_city_population_cutoff = large_city_population_cutoff
-        self.geo_data_field_names = ['name', 'country_code', 'longitude', 'latitude', 'admin_level', 'geoname_id', 'location_type', 'population']
+        self.geo_data_field_names = ['name', 'country_code', 'longitude', 'latitude', 'geoname_id', 'location_type', 'population']
+        self.default_location_types = ['city', 'place', 'country', 'admin1', 'admin2', 'admin3', 'admin4', 'admin5', 'admin6', 'continent', 'region']
+        self.location_types = self._get_location_types(location_types)
+        self.argument_hash = self.get_arguments_hash()
 
     def init(self):
         self.kp = self.get_keyword_processor_pickle()
@@ -77,12 +83,12 @@ class Geocode():
 
     @property
     def geonames_pickle_path(self):
-        cache_path = self.get_cache_path(f'geonames_{self.min_population_cutoff}_{self.large_city_population_cutoff}.pkl')
+        cache_path = self.get_cache_path(f'geonames_{self.argument_hash}.pkl')
         return cache_path
 
     @property
     def keyword_processor_pickle_path(self):
-        cache_path = self.get_cache_path(f'geonames_keyword_processor{self.min_population_cutoff}_{self.large_city_population_cutoff}.pkl')
+        cache_path = self.get_cache_path(f'geonames_keyword_processor{self.argument_hash}.pkl')
         return cache_path
 
     @property
@@ -113,52 +119,57 @@ class Geocode():
                 return False
             else:
                 return True
-        log.info('Transforming geonames data...')
         log.info('Reading geo data...')
         df = self.get_geonames_data()
-        # select places with a population greater zero
-        df = df[(df.population > 0) | (df.feature_code == 'PCLI')]
-        # get rid of administrative zones without country codes (e.g. "The Commonwealth")
-        df = df[~df.country_code.isnull()]
-        # select places with feature class A (admin) and P (place)
+
+        # Global filtering 
+        log.info('Reading feature class data...')
         df_features = self.get_feature_names_data()
         df = df.merge(df_features, on='feature_code', how='left')
-        df = df[df.feature_code_class.isin(['A', 'P'])]
-        # Filter out everything below a certain popluation
-        df = df[df['population'] > self.min_population_cutoff]
-        # expand alternate names
+        df.loc[df.geoname_id == '3355338', 'country_code'] = 'NA' # strangely, Namibia is missing the country_code
+        # Apply the following filters:
+        # - only keep places with feature class A (admin) and P (place), and CONT (continent)
+        df = df[
+                (df.feature_code_class.isin(['A', 'P'])) |
+                (df.feature_code.isin(['CONT', 'RGN']))
+                ]
+        # - remove everything below min_population_cutoff
+        df = df[
+                (df['population'] > self.min_population_cutoff) | 
+                (df.feature_code.isin(['CONT', 'RGN']))
+                ]
+        # - get rid of items without a country code, usually administrative zones without country codes (e.g. "The Commonwealth")
+        df = df[
+                (~df.country_code.isnull()) |
+                (df.feature_code.isin(['CONT', 'RGN']))
+                ]
+        # - remove certain administrative regions (such as zones, historical divisions, territories)
+        df = df[~df.feature_code.isin(['ZN', 'PCLH', 'TERR'])]
+
+        # Expansion of altnames
+        # - expand alternate names
         df.loc[:, 'alternatenames'] = df.alternatenames.str.split(',')
         df['is_altname'] = False
         _df = df.explode('alternatenames')
         _df['name'] = _df['alternatenames']
         _df['is_altname'] = True
         df = pd.concat([df, _df])
-        # Remove all names that are floats/ints
+        df = df.drop(columns=['alternatenames'])
+        log.info(f'... read a total of {len(df):,} location names')
+
+        # Filtering applied to names and altnames
+        log.info('Apply filters...')
+        # - remove all names that are floats/ints
         df['is_str'] = df.name.apply(lambda s: isinstance(s, str))
         df = df[df['is_str']]
-        # Levels of priority:
-        # 1) Prioritize large cities (population size > large_city_population_cutoff)
-        # 2) Admin areas
-        # 3) Places
-        # Within each group we will sort according to population size
-        log.info('Sorting by priority...')
-        feature_code_priorities = ['A', 'P']
-        feature_code_priorities = {k: i+1 for i, k in enumerate(feature_code_priorities)}
-        df['priority'] = df.feature_code_class.apply(lambda code: feature_code_priorities[code])
-        # Remove altnames of admin levels and of places that are very small
-        df['keep'] = ~(
-            ((df.is_altname) & (df.feature_code_class == 'A')) |
-            ((df.is_altname) & (df.feature_code_class == 'P') & (df.population < 1000))
-            )
-        __import__('pdb').set_trace()
-        # df.loc[(df.population > self.large_city_population_cutoff) & (df.feature_code_class == 'P') & (~df.is_altname), 'priority'] = 0
-        df.loc[((df.population > self.large_city_population_cutoff) & (df.feature_code_class == 'P')), 'priority'] = 0
-        # Only allow 2 character names in specific cases
-        # - Name is non-ascii (e.g. Chinese characters)
-        # - Is an alternative name for a country (e.g. UK)
-        # - Is a US state or Canadian province
-        df['is_ascii'] = df.name.apply(is_ascii)
+        # - only allow 2 character names if 1) name is non-ascii (e.g. Chinese characters) 2) is an alternative name for a country (e.g. UK) 
+        #   3) is a US state or Canadian province
         df['is_country'] = df.feature_code.str.startswith('PCL')
+        df['is_ascii'] = df.name.apply(is_ascii)
+        # add "US" manually since it's missing in geonames
+        row_usa = df[df.is_country & (df.name == 'USA')].iloc[0]
+        row_usa['name'] = 'US'
+        df = df.append(row_usa)
         df = df[
                 (~df.is_ascii) | 
                 (df.name.str.len() > 2) | 
@@ -166,25 +177,72 @@ class Geocode():
                 ((df.name.str.len() == 2) & (df.country_code == 'CA')) |
                 ((df.name.str.len() == 2) & (df.is_country))
                 ]
-        # add "US" manually since it's missing in geonames
-        row_usa = df[df.is_country & (df.name == 'USA')].iloc[0]
-        row_usa['name'] = 'US'
-        df = df.append(row_usa)
-        # sort by priorities and drop name duplicates (this way we will keep only the high priority elements)
-        df.sort_values(by=['priority', 'population'], ascending=[True, False], inplace=True)
-        df['name_lower'] = df.name.str.lower()
-        df = df.drop_duplicates('name_lower', keep='first')
-        log.info(f'... collected a total of {len(df):,} names of places and countries')
+        # - altnames need to have at least 4 characters (removes e.g. 3-letter codes)
+        df = df[~(
+                    (~df.is_country) &
+                    (~df.country_code.isin(['US', 'CA'])) &
+                    (df.is_ascii) &
+                    (df.is_altname) &
+                    (df.name.str.len() < 4)
+                    )]
+        # - remove altnames of insignificant admin levels and of places that are very small
         # set admin level
         df['admin_level'] = None
         df.loc[df.feature_code.isin(['PCLI', 'PCLD', 'PCLF', 'PCLS', 'PCLIX', 'PCLX', 'PCL']), 'admin_level'] = 0
         for admin_level in range(1, 6):
             df.loc[df.feature_code.isin([f'ADM{admin_level}', f'ADM{admin_level}H']), 'admin_level'] = admin_level
-        # set location_type
-        priority_to_location_type = {0: 'big_city', 1: 'admin', 2: 'place'}
-        df['location_type'] = df.priority.apply(lambda p: priority_to_location_type[p])
-        # Build geo data array. Position in list corresponds to priority
-        log.info('Writing geonames data to pickle...')
+        df = df[
+                ~(
+                    ((df.is_altname) & (df.admin_level.isin([3,4,5]))) |
+                    ((df.is_altname) & (df.feature_code_class == 'P') & (df.population < 100000))
+                    )
+                ]
+
+        # Sort by priorities and drop duplicate names
+        # Priorities
+        # 1) Large cities (population size > large_city_population_cutoff)
+        # 2) States/provinces (admin_level == 1)
+        # 3) Countries (admin_level = 0)
+        # 4) Places
+        # 5) counties (admin_level > 1)
+        # 6) continents
+        # 7) regions
+        # (within each group we will sort according to population size)
+        # Assigning priorities
+        df['priority'] = np.nan
+        df.loc[(df.feature_code == 'RGN'), 'priority'] = 7
+        df.loc[(df.feature_code == 'CONT'), 'priority'] = 6
+        df.loc[(df.feature_code_class == 'A') & (df.admin_level > 1), 'priority'] = 5
+        df.loc[df.feature_code_class == 'P', 'priority'] = 4
+        df.loc[(df.feature_code_class == 'A') & (df.admin_level == 0), 'priority'] = 3
+        df.loc[(df.feature_code_class == 'A') & (df.admin_level == 1), 'priority'] = 2
+        df.loc[(df.population > self.large_city_population_cutoff) & (df.feature_code_class == 'P') & (~df.is_altname), 'priority'] = 1
+        # Sorting
+        log.info('Sorting by priority...')
+        df.sort_values(by=['priority', 'admin_level', 'population'], ascending=[True, True, False], inplace=True)
+        # drop name duplicates by keeping only the high priority elements
+        df['name_lower'] = df.name.str.lower()
+        df = df.drop_duplicates('name_lower', keep='first')
+        # set location_types
+        df['location_type'] = np.nan
+        for admin_level in range(1, 6):
+            df.loc[df.admin_level == admin_level, 'location_type'] = f'admin{admin_level}'
+        df.loc[df.feature_code == 'ADMD', 'location_type'] = 'admin_other'
+        df.loc[df.admin_level == 0, 'location_type'] = 'country'
+        df.loc[(df.population <= self.large_city_population_cutoff) & (df.feature_code_class == 'P'), 'location_type'] = 'place'
+        df.loc[(df.population > self.large_city_population_cutoff) & (df.feature_code_class == 'P'), 'location_type'] = 'city'
+        df.loc[df.feature_code == 'CONT', 'location_type'] = 'continent'
+        df.loc[df.feature_code == 'RGN', 'location_type'] = 'region'
+        if len(df[df.location_type.isna()]) > 0:
+            log.warning(f'{len(df[df.location_type.isna()]):,} locations could not be matched to a location_type. These will be ignored.')
+        # filter by user-defined location types
+        df = df[df.location_type.isin(self.location_types)]
+        location_types_counts = dict(df.location_type.value_counts())
+        log.info(f'Collected a total of {len(df):,} location names. Breakdown by location types:')
+        for loc_type, loc_type_count in location_types_counts.items():
+            log.info(f'... type {loc_type}: {loc_type_count:,}')
+        # Write as pickled list
+        log.info(f'Writing geonames data to file {self.geonames_pickle_path}...')
         df = df[self.geo_data_field_names].values.tolist()
         with open(self.geonames_pickle_path, 'wb') as f:
             pickle.dump(df, f)
@@ -197,7 +255,7 @@ class Geocode():
         for i, item in tqdm(enumerate(geo_data), total=len(geo_data)):
             idx = str(i)
             kp.add_keyword(item[0], idx)
-        log.info('Writing keyword processor pickle...')
+        log.info(f'Writing keyword processor pickle to file {self.keyword_processor_pickle_path}...')
         with open(self.keyword_processor_pickle_path, 'wb') as f:
             pickle.dump(kp, f)
 
@@ -244,3 +302,23 @@ class Geocode():
         process_chunk_delayed = joblib.delayed(process_chunk)
         result = joblib.Parallel(n_jobs=num_cpus)(process_chunk_delayed(chunk, self) for chunk in tqdm(np.array_split(input_texts, num_cpus)))
         return [r for res in result for r in res]
+
+    def get_arguments_hash(self):
+        geocode_args = [str(self.min_population_cutoff), str(self.large_city_population_cutoff)] + self.location_types
+        # append username
+        geocode_args.append(getpass.getuser())
+        return hashlib.sha256(','.join(geocode_args).encode()).hexdigest()[:15]
+
+    # private
+
+    def _get_location_types(self, location_types):
+        if location_types is None:
+            return self.default_location_types
+        _location_types = []
+        for _t in location_types:
+            if _t not in self.default_location_types:
+                log.warning(f'Location type {_t} will be ignored as it is not part of the default location types ({",".join(self.default_location_types)})')
+                continue
+            _location_types.append(_t)
+        return _location_types
+
