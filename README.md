@@ -23,8 +23,8 @@ mydata = ['Tel Aviv', 'busan', '🇨🇦']
 
 
 for input_text in mydata:
-  locations = gc.decode(input_text)
-  print(locations)
+    locations = gc.decode(input_text)
+    print(locations)
 
 [
     {
