@@ -13,6 +13,7 @@ import zipfile
 import numpy as np
 import hashlib
 import getpass
+import json
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)-5.5s] [%(name)-12.12s]: %(message)s')
@@ -198,6 +199,18 @@ class Geocode():
                     )
                 ]
 
+        # Add flags
+        flags = self.read_flag_data()
+        df_countries = df[(df.geoname_id.isin([str(v) for v in flags.values()])) & (~df.is_altname)].copy()
+        for flag, geoname_id in flags.items():
+            try:
+                row = df_countries[(df_countries.geoname_id == str(geoname_id))].iloc[0].copy()
+            except IndexError:
+                pass
+            else:
+                row['name'] = flag
+                df = df.append(row)
+
         # Sort by priorities and drop duplicate names
         # Priorities
         # 1) Large cities (population size > large_city_population_cutoff)
@@ -221,7 +234,7 @@ class Geocode():
         log.info('Sorting by priority...')
         df.sort_values(by=['priority', 'population'], ascending=[True, False], inplace=True)
         # drop name duplicates by keeping only the high priority elements
-        df['name_lower'] = df.name.str.lower()
+        df['name_lower'] = df['name'].str.lower()
         df = df.drop_duplicates('name_lower', keep='first')
         # set location_types
         df['location_type'] = np.nan
@@ -308,6 +321,12 @@ class Geocode():
         # append username
         geocode_args.append(getpass.getuser())
         return hashlib.sha256(','.join(geocode_args).encode()).hexdigest()[:15]
+
+    def read_flag_data(self):
+        this_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(this_dir, 'flags.json'), 'r') as f:
+            flags = json.load(f)
+        return flags
 
     # private
 

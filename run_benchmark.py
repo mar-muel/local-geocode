@@ -13,15 +13,16 @@ logger = logging.getLogger(__name__)
 
 benchmark_path = 'benchmark'
 f_out_results = os.path.join(benchmark_path, 'benchmark_results.csv')
+f_in = os.path.join(benchmark_path, 'benchmark_data.csv')
 
 def read_benchmark_data():
-    df = pd.read_csv(os.path.join(benchmark_path, 'benchmark_data.csv'))
+    df = pd.read_csv(f_in)
     df['true'] = df.true.apply(lambda s: [np.nan] if s == '[nan]' else ast.literal_eval(s))
     return df
 
 def predict_local_geocode(df):
     gc = Geocode()
-    gc.prepare()
+    gc.prepare(recompute=False)
     gc.init()
     df['predicted'] = np.nan
     df['is_correct'] = False
