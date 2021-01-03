@@ -2,6 +2,7 @@ from geocode.geocode import Geocode
 import argparse
 import sys, os
 import logging
+import json
 
 USAGE_DESC = """
 python main.py <command> [<args>]
@@ -24,7 +25,7 @@ class ArgParse(object):
                 usage=USAGE_DESC)
         parser.add_argument('command', help='Subcommand to run')
         args = parser.parse_args(sys.argv[1:2])
-        if not hasattr(self, args.command):
+        if not hasattr(self, args.command): 
             print('Unrecognized command')
             parser.print_help()
             sys.exit(1)
@@ -46,7 +47,7 @@ class ArgParse(object):
         geocode = Geocode()
         geocode.init()
         decoded = geocode.decode(args.input_text)
-        print(decoded)
+        print(json.dumps(decoded))
 
 
 if __name__ == '__main__':

@@ -33,7 +33,7 @@ class Geocode():
         self.geo_data = None
         self.min_population_cutoff = min_population_cutoff
         self.large_city_population_cutoff = large_city_population_cutoff
-        self.geo_data_field_names = ['name', 'country_code', 'longitude', 'latitude', 'geoname_id', 'location_type', 'population']
+        self.geo_data_field_names = ['name', 'official_name', 'country_code', 'longitude', 'latitude', 'geoname_id', 'location_type', 'population']
         self.default_location_types = ['city', 'place', 'country', 'admin1', 'admin2', 'admin3', 'admin4', 'admin5', 'admin6', 'admin_other', 'continent', 'region']
         self.location_types = self._get_location_types(location_types)
         self.argument_hash = self.get_arguments_hash()
@@ -148,6 +148,7 @@ class Geocode():
         df = df[~df.feature_code.isin(['ZN', 'PCLH', 'TERR'])]
 
         # Expansion of altnames
+        df['official_name'] = df['name']
         # - expand alternate names
         df.loc[:, 'alternatenames'] = df.alternatenames.str.split(',')
         df['is_altname'] = False
