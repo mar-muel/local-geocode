@@ -6,6 +6,10 @@ This project is mainly used in the context of decoding data from the "user.locat
 
 I have compared the predictions by local-geocode with geopy for 500 Twitter user locations. Local-geocode performs signficantly better (85% accuracy) than geopy (64% accuracy). Read more about the benchmark [here](benchmark/benchmark.md).
 
+# Install
+```
+pip install local-geocode
+```
 
 # Example usage
 Local-geocode is able to parse arbitrary location names in many languages, as well as numerous alternative names of places and returns geographic information.
@@ -14,10 +18,7 @@ Local-geocode is able to parse arbitrary location names in many languages, as we
 from geocode.geocode import Geocode
 
 gc = Geocode()
-
-gc.prepare() # compute pickles if not already present
-
-gc.init()  # load pickles
+gc.load()  # load geonames data
 
 mydata = ['Tel Aviv', 'Mangalore 🇮🇳']
 
@@ -61,50 +62,42 @@ for input_text in mydata:
 ]
 ```
 
-# Install
-
-1) Clone this repo
-```bash
-git clone https://github.com/mar-muel/local-geocode.git && cd local-geocode
-```
-2) Install dependencies
-
-Install dependencies with conda:
-```bash
-conda env create -f environment.yml
-```
-(Or using `pip install -r requirements.txt`)
-
-3) Next we will download data from geonames.org and create the data structures needed to efficiently decode locations from input text. This only needs to be run once!
-```bash
-python main.py prepare
-```
-The resulting 2 pickle files are about ~50MB in size and will be stored under `/tmp/geocode_local`.
-
-4) Now we should be all set! :raised_hands: We can test it via CLI:
-```bash
-python main.py decode -i "new delhi, L.A., and zurich"
-```
-Output:
-```json
-[
-    {"name": "New Delhi", "official_name": "New Delhi", "country_code": "IN", "longitude": 77.22445, "latitude": 28.635759999999998, "geoname_id": "1261481", "location_type": "city", "population": 317797},
-    {"name": "Zurich", "official_name": "Kanton Z\u00fcrich", "country_code": "CH", "longitude": 8.66667, "latitude": 47.41667, "geoname_id": "2657895", "location_type": "admin1", "population": 1289559},
-    {"name": "L.A.", "official_name": "Los Angeles", "country_code": "US", "longitude": -118.24368, "latitude": 34.05223, "geoname_id": "5368361", "location_type": "city", "population": 3971883}
-]
-```
-
 # Usage
-The easiest way to integrate `local-geocode` to your project is to simply copy the folder `geocode` into your project root. After this you should be able to use the code as described above.
+The easiest way to integrate `local-geocode` to your project is to simply run `pip install local-geocode`. You can also simply clone this repository and copy the folder `geocode` into your project. 
+
+## Configuration
+When installed with pip, local-geocode comes packaged with 2 pickle files which were generated using the default configuration. You can however change the configuration and then re-compute the pickle files for your needs.
+
+The `Geocode()` initializer accepts the following arguments:
+* `min_population_cutoff` (default: 30k): Places below this population size are excluded
+* `large_city_population_cutoff` (default: 200k): Cities with a population size larger than this will be prioritized. Example: "Los Angeles, USA" will result in "Los Angeles" as the first result, and not "USA".
+* `location_types`: Provide a list of location types which you would like to filter. By default it uses all location types (i.e. `['city', 'place', 'country', 'admin1', 'admin2', 'admin3', 'admin4', 'admin5', 'admin6', 'admin_other', 'continent', 'region']`).
+
+Example:
+```python
+from geocode.geocode import Geocode
+
+gc = Geocode(min_population_cutoff=100000)
+gc.load()  # downloads geonames data (~1.2GB), parses data, generates pickle files in <package folder>/geocode/data for new configuration
+```
+(This may take 1-2min to run)
+
+
+## Prioritization
+If multiple locations are detected in an input string, local-geocode sorts the output by the following prioritization:
+1. Large cities (`population size > large_city_population_cutoff`)
+2. States/provinces
+3. Countries
+4. Places
+5. Counties (admin levels larger than 1)
+6. Continents
+7. Regions
 
 ## Parallelized
 If you have a large number of texts to decode, it might make sense to use `decode_parallel` which runs decode in parallel:
 ```python
 gc = Geocode()
-
-gc.prepare() # compute pickles if not already present
-
-gc.init()  # load pickles
+gc.load()  # load geonames data
 
 # a large number of items
 mydata = ['Tel Aviv', ..,]
@@ -114,19 +107,5 @@ locations = gc.decode_parallel(mydata, num_cpus=num_cpus)
 print(locations)
 ```
 
-## Configuration
-The `Geocode()` initializer accepts the following arguments:
-* `min_population_cutoff` (default: 30k): Places below this population size are excluded
-* `large_city_population_cutoff` (default: 200k): Cities with a population size larger than this will be prioritized. Example: "Los Angeles, USA" will result in "Los Angeles" as the first result, and not "USA".
-* `location_types`: Provide a list of location types which you would like to filter. By default it uses all location types (i.e. `['city', 'place', 'country', 'admin1', 'admin2', 'admin3', 'admin4', 'admin5', 'admin6', 'admin_other', 'continent', 'region']`).
-
-Local-geocode sorts the output by the following prioritization:
-1. Large cities (`population size > large_city_population_cutoff`)
-2. States/provinces
-3. Countries
-4. Places
-5. Counties (admin levels larger than 1)
-6. Continents
-7. Regions
-
+# Contact
 Please open an issue, if you run into problems!
