@@ -1,4 +1,4 @@
-{
+flags = {
     "\ud83c\udde6\ud83c\udde9": 3041565,
     "\ud83c\udde6\ud83c\uddea": 290557,
     "\ud83c\udde6\ud83c\uddeb": 1149361,

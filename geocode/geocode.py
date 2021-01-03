@@ -14,6 +14,7 @@ import numpy as np
 import hashlib
 import getpass
 import json
+from .flags import flags
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)-5.5s] [%(name)-12.12s]: %(message)s')
@@ -201,7 +202,6 @@ class Geocode():
                 ]
 
         # Add flags
-        flags = self.read_flag_data()
         df_countries = df[(df.geoname_id.isin([str(v) for v in flags.values()])) & (~df.is_altname)].copy()
         for flag, geoname_id in flags.items():
             try:
@@ -322,12 +322,6 @@ class Geocode():
         # append username
         geocode_args.append(getpass.getuser())
         return hashlib.sha256(','.join(geocode_args).encode()).hexdigest()[:15]
-
-    def read_flag_data(self):
-        this_dir = os.path.dirname(os.path.abspath(__file__))
-        with open(os.path.join(this_dir, 'flags.json'), 'r') as f:
-            flags = json.load(f)
-        return flags
 
     # private
 
