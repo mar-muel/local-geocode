@@ -37,7 +37,6 @@ for input_text in mydata:
         "population": 432892
     }
 ]
-
 [
     {
         "name": "Mangalore",
@@ -58,18 +57,6 @@ for input_text in mydata:
         "geoname_id": "1269750",
         "location_type": "country",
         "population": 1352617328
-    }
-]
-
-[
-    {
-        "name": "\ud83c\udde8\ud83c\udde6",
-        "country_code": "CA",
-        "longitude": -113.64258000000001,
-        "latitude": 60.10867,
-        "geoname_id": "6251999",
-        "location_type": "country",
-        "population": 37058856
     }
 ]
 ```
@@ -128,7 +115,7 @@ print(locations)
 ```
 
 ## Configuration
-The `Geocode()` function accepts the following parameters:
+The `Geocode()` initializer accepts the following arguments:
 * `min_population_cutoff` (default: 30k): Places below this population size are excluded
 * `large_city_population_cutoff` (default: 200k): Cities with a population size larger than this will be prioritized. Example: "Los Angeles, USA" will result in "Los Angeles" as the first result, and not "USA".
 * `location_types`: Provide a list of location types which you would like to filter. By default it uses all location types (i.e. `['city', 'place', 'country', 'admin1', 'admin2', 'admin3', 'admin4', 'admin5', 'admin6', 'admin_other', 'continent', 'region']`).
