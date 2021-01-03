@@ -101,9 +101,9 @@ python main.py decode -i "new delhi, L.A., and zurich"
 Output:
 ```json
 [
-    {'name': 'New Delhi', 'official_name': 'New Delhi', 'country_code': 'IN', 'longitude': 77.22445, 'latitude': 28.635759999999998, 'geoname_id': '1261481', 'location_type': 'city', 'population': 317797},
-    {'name': 'Zurich', 'official_name': 'Kanton Zürich', 'country_code': 'CH', 'longitude': 8.66667, 'latitude': 47.41667, 'geoname_id': '2657895', 'location_type': 'admin1', 'population': 1289559}, 
-    {'name': 'L.A.', 'official_name': 'Los Angeles', 'country_code': 'US', 'longitude': -118.24368, 'latitude': 34.05223, 'geoname_id': '5368361', 'location_type': 'city', 'population': 3971883}
+    {"name": "New Delhi", "official_name": "New Delhi", "country_code": "IN", "longitude": 77.22445, "latitude": 28.635759999999998, "geoname_id": "1261481", "location_type": "city", "population": 317797},
+    {"name": "Zurich", "official_name": "Kanton Z\u00fcrich", "country_code": "CH", "longitude": 8.66667, "latitude": 47.41667, "geoname_id": "2657895", "location_type": "admin1", "population": 1289559},
+    {"name": "L.A.", "official_name": "Los Angeles", "country_code": "US", "longitude": -118.24368, "latitude": 34.05223, "geoname_id": "5368361", "location_type": "city", "population": 3971883}
 ]
 ```
 
