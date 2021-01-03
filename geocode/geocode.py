@@ -12,7 +12,6 @@ import urllib.request
 import zipfile
 import numpy as np
 import hashlib
-import getpass
 import json
 from .flags import flags
 
@@ -21,14 +20,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)-5.5s] 
 log = logging.getLogger(__name__)
 
 class Geocode():
-    """
-    Geocode
-
-    Download geo dataset from:
-    - https://download.geonames.org/export/dump/allCountries.zip
-    - https://download.geonames.org/export/dump/featureCodes_en.txt
-    """
-
     def __init__(self, min_population_cutoff=30000, large_city_population_cutoff=200000, location_types=None):
         self.kp = None
         self.geo_data = None
@@ -39,7 +30,20 @@ class Geocode():
         self.location_types = self._get_location_types(location_types)
         self.argument_hash = self.get_arguments_hash()
 
-    def init(self):
+    def load(self, recompute=False):
+        if recompute or not (os.path.isfile(self.geonames_pickle_path) and os.path.isfile(self.keyword_processor_pickle_path)):
+            # geonames data
+            log.info('Recomputing pickle files...')
+            if os.path.isfile(self.geonames_pickle_path) and not recompute:
+                log.info('Pickled geonames file is already present!')
+            else:
+                self.create_geonames_pickle()
+            # keyword processor
+            if os.path.isfile(self.keyword_processor_pickle_path) and not recompute:
+                log.info('Pickled keyword processor file is already present!')
+            else:
+                self.create_keyword_processor_pickle()
+        # load data into memory
         self.kp = self.get_keyword_processor_pickle()
         self.geo_data = self.get_geonames_pickle()
 
@@ -55,7 +59,7 @@ class Geocode():
             log.info('Extracting data...')
             # extract
             with zipfile.ZipFile(geonames_data_path_zip, 'r') as f:
-                f.extractall(self.tmp_dir)
+                f.extractall(self.data_dir)
             log.info('...done')
             # remove zip file
             os.remove(geonames_data_path_zip)
@@ -64,7 +68,7 @@ class Geocode():
         geonames_columns = ['geoname_id', 'name', 'asciiname', 'alternatenames', 'latitude', 'longitude', 'feature_class', 'feature_code', 'country_code', 'cc2', 'admin1', 'admin2', 'admin3', 'admin4', 'population', 'elevation', 'dem', 'timezone', 'modification_date']
         df = pd.read_csv(geonames_data_path, names=geonames_columns, sep='\t', dtype=dtypes, usecols=dtypes.keys())
         # remove data file
-        # os.remove(geonames_data_path)
+        os.remove(geonames_data_path)
         return df
 
     def get_feature_names_data(self):
@@ -80,7 +84,7 @@ class Geocode():
         df_features['feature_code_class'] = ''
         df_features.loc[:, ['feature_code_class', 'feature_code']] = df_features.feature_code.str.split('.', expand=True).values
         # remove data file
-        # os.remove(feature_code_path)
+        os.remove(feature_code_path)
         return df_features
 
     @property
@@ -90,17 +94,18 @@ class Geocode():
 
     @property
     def keyword_processor_pickle_path(self):
-        cache_path = self.get_cache_path(f'geonames_keyword_processor{self.argument_hash}.pkl')
+        cache_path = self.get_cache_path(f'geonames_keyword_processor_{self.argument_hash}.pkl')
         return cache_path
 
     @property
-    def tmp_dir(self):
-        return os.path.join('/', 'tmp', 'local_geocode')
+    def data_dir(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(current_dir, 'data')
 
     def get_cache_path(self, name):
-        if not os.path.isdir(self.tmp_dir):
-            os.makedirs(self.tmp_dir)
-        return os.path.join(self.tmp_dir, name)
+        if not os.path.isdir(self.data_dir):
+            os.makedirs(self.data_dir)
+        return os.path.join(self.data_dir, name)
 
     def get_geonames_pickle(self):
         with open(self.geonames_pickle_path, 'rb') as f:
@@ -273,20 +278,6 @@ class Geocode():
         with open(self.keyword_processor_pickle_path, 'wb') as f:
             pickle.dump(kp, f)
 
-    def prepare(self, recompute=False):
-        """Prepare data pickles"""
-        # geonames data
-        if os.path.isfile(self.geonames_pickle_path) and not recompute:
-            log.info('Pickled geonames file is already present!')
-        else:
-            self.create_geonames_pickle()
-        # keyword processor
-        if os.path.isfile(self.keyword_processor_pickle_path) and not recompute:
-            log.info('Pickled keyword processor file is already present!')
-        else:
-            self.create_keyword_processor_pickle()
-        log.info('... You are all set!')
-
     def decode(self, input_text):
         matches = self.kp.extract_keywords(input_text)
         if len(matches) == 0:
@@ -298,7 +289,7 @@ class Geocode():
     def decode_parallel(self, input_texts, num_cpus=None):
         """Run decode in parallel"""
         def process_chunk(chunk, gc):
-            gc.init()  # load pickles
+            gc.load()  # load pickles
             results = []
             for item in tqdm(chunk, total=len(chunk)):
                 res = gc.decode(item)
@@ -319,8 +310,6 @@ class Geocode():
 
     def get_arguments_hash(self):
         geocode_args = [str(self.min_population_cutoff), str(self.large_city_population_cutoff)] + self.location_types
-        # append username
-        geocode_args.append(getpass.getuser())
         return hashlib.sha256(','.join(geocode_args).encode()).hexdigest()[:15]
 
     # private
