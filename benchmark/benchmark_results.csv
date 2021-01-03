@@ -1,4 +1,4 @@
-user.location,true,predicted_geopy,is_correct_geopy,predicted,is_correct
+user.location,true,predicted_geopy,is_correct_geopy,local_geocode_predicted,local_geocode_is_correct
 Bizzaro Dystopia,[nan],,True,,True
 573 / 734,[nan],US,False,,True
 Came from Shiraz/ Camden Town,"['IR', 'UK']",,False,IR,True
