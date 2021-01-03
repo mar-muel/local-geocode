@@ -86,10 +86,10 @@ gc.load()  # downloads geonames data (~1.2GB), parses data, generates pickle fil
 ## Prioritization
 If multiple locations are detected in an input string, local-geocode sorts the output by the following prioritization:
 1. Large cities (`population size > large_city_population_cutoff`)
-2. States/provinces
+2. States/provinces (admin level 1)
 3. Countries
-4. Places
-5. Counties (admin levels larger than 1)
+4. Places (`population size <= large_city_population_cutoff`)
+5. Counties (admin levels > 1)
 6. Continents
 7. Regions
 
