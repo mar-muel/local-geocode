@@ -19,8 +19,7 @@ gc.prepare() # compute pickles if not already present
 
 gc.init()  # load pickles
 
-mydata = ['Tel Aviv', 'busan', '🇨🇦']
-
+mydata = ['Tel Aviv', 'Mangalore 🇮🇳']
 
 for input_text in mydata:
     locations = gc.decode(input_text)
@@ -29,6 +28,7 @@ for input_text in mydata:
 [
     {
         "name": "Tel Aviv",
+        "official_name": "Tel Aviv",
         "country_code": "IL",
         "longitude": 34.780570000000004,
         "latitude": 32.08088,
@@ -37,17 +37,30 @@ for input_text in mydata:
         "population": 432892
     }
 ]
+
 [
     {
-        "name": "Busan",
-        "country_code": "KR",
-        "longitude": 129.03003999999999,
-        "latitude": 35.10168,
-        "geoname_id": "1838524",
+        "name": "Mangalore",
+        "official_name": "Mangalore",
+        "country_code": "IN",
+        "longitude": 74.85603,
+        "latitude": 12.91723,
+        "geoname_id": "1263780",
         "location_type": "city",
-        "population": 3678555
+        "population": 417387
+    },
+    {
+        "name": "\ud83c\uddee\ud83c\uddf3",
+        "official_name": "Republic of India",
+        "country_code": "IN",
+        "longitude": 79.0,
+        "latitude": 22.0,
+        "geoname_id": "1269750",
+        "location_type": "country",
+        "population": 1352617328
     }
 ]
+
 [
     {
         "name": "\ud83c\udde8\ud83c\udde6",
@@ -83,14 +96,14 @@ The resulting 2 pickle files are about ~50MB in size and will be stored under `/
 
 4) Now we should be all set! :raised_hands: We can test it via CLI:
 ```bash
-python main.py decode -i "I live in new delhi, L.A., and zurich"
+python main.py decode -i "new delhi, L.A., and zurich"
 ```
 Output:
-```python
+```json
 [
-  {'name': 'New Delhi', 'country_code': 'IN', 'longitude': 77.22445, 'latitude': 28.635759999999998, 'geoname_id': '1261481', 'location_type': 'city', 'population': 317797}, 
-  {'name': 'IN', 'country_code': 'US', 'longitude': -86.25027, 'latitude': 40.00032, 'geoname_id': '4921868', 'location_type': 'admin1', 'population': 6265933}, {'name': 'Zurich', 'country_code': 'CH', 'longitude': 8.66667, 'latitude': 47.41667, 'geoname_id': '2657895', 'location_type': 'admin1', 'population': 1289559},
-  {'name': 'L.A.', 'country_code': 'US', 'longitude': -118.24368, 'latitude': 34.05223, 'geoname_id': '5368361', 'location_type': 'city', 'population': 3971883}
+    {"name": "New Delhi", "official_name": "New Delhi", "country_code": "IN", "longitude": 77.22445, "latitude": 28.635759999999998, "geoname_id": "1261481", "location_type": "city", "population": 317797},
+    {"name": "Zurich", "official_name": "Kanton Z\u00fcrich", "country_code": "CH", "longitude": 8.66667, "latitude": 47.41667, "geoname_id": "2657895", "location_type": "admin1", "population": 1289559},
+    {"name": "L.A.", "official_name": "Los Angeles", "country_code": "US", "longitude": -118.24368, "latitude": 34.05223, "geoname_id": "5368361", "location_type": "city", "population": 3971883}
 ]
 ```
 
@@ -115,7 +128,7 @@ print(locations)
 ```
 
 ## Configuration
-The `prepare()` function accepts two parameters
+The `Geocode()` function accepts the following parameters:
 * `min_population_cutoff` (default: 30k): Places below this population size are excluded
 * `large_city_population_cutoff` (default: 200k): Cities with a population size larger than this will be prioritized. Example: "Los Angeles, USA" will result in "Los Angeles" as the first result, and not "USA".
 * `location_types`: Provide a list of location types which you would like to filter. By default it uses all location types (i.e. `['city', 'place', 'country', 'admin1', 'admin2', 'admin3', 'admin4', 'admin5', 'admin6', 'admin_other', 'continent', 'region']`).
