@@ -37,7 +37,6 @@ for input_text in mydata:
         "population": 432892
     }
 ]
-
 [
     {
         "name": "Mangalore",
@@ -58,18 +57,6 @@ for input_text in mydata:
         "geoname_id": "1269750",
         "location_type": "country",
         "population": 1352617328
-    }
-]
-
-[
-    {
-        "name": "\ud83c\udde8\ud83c\udde6",
-        "country_code": "CA",
-        "longitude": -113.64258000000001,
-        "latitude": 60.10867,
-        "geoname_id": "6251999",
-        "location_type": "country",
-        "population": 37058856
     }
 ]
 ```
