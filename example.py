@@ -3,8 +3,7 @@ import json
 
 gc = Geocode()
 
-gc.prepare(recompute=False) # compute pickles if not already present
-gc.init()  # load pickles
+gc.load()  # load pickles
 mydata = ['Tel Aviv', 'Mangalore 🇮🇳']
 
 for input_text in mydata:
