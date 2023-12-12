@@ -5,6 +5,6 @@ dependencies:
   - pandas>=1.0
   - tqdm
   - joblib
-  - python=3.6
+  - python>=3.6
   - pip:
     - flashtext

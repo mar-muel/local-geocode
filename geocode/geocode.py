@@ -129,7 +129,7 @@ class Geocode():
         log.info('Reading geo data...')
         df = self.get_geonames_data()
 
-        # Global filtering 
+        # Global filtering
         log.info('Reading feature class data...')
         df_features = self.get_feature_names_data()
         df = df.merge(df_features, on='feature_code', how='left')
@@ -142,7 +142,7 @@ class Geocode():
                 ]
         # - remove everything below min_population_cutoff
         df = df[
-                (df['population'] > self.min_population_cutoff) | 
+                (df['population'] > self.min_population_cutoff) |
                 (df.feature_code.isin(['CONT', 'RGN']))
                 ]
         # - get rid of items without a country code, usually administrative zones without country codes (e.g. "The Commonwealth")
@@ -170,17 +170,17 @@ class Geocode():
         # - remove all names that are floats/ints
         df['is_str'] = df.name.apply(lambda s: isinstance(s, str))
         df = df[df['is_str']]
-        # - only allow 2 character names if 1) name is non-ascii (e.g. Chinese characters) 2) is an alternative name for a country (e.g. UK) 
+        # - only allow 2 character names if 1) name is non-ascii (e.g. Chinese characters) 2) is an alternative name for a country (e.g. UK)
         #   3) is a US state or Canadian province
         df['is_country'] = df.feature_code.str.startswith('PCL')
         df['is_ascii'] = df.name.apply(is_ascii)
         # add "US" manually since it's missing in geonames
         row_usa = df[df.is_country & (df.name == 'USA')].iloc[0]
         row_usa['name'] = 'US'
-        df = df.append(row_usa)
+        df = pd.concat([df, pd.DataFrame.from_records([row_usa])])
         df = df[
-                (~df.is_ascii) | 
-                (df.name.str.len() > 2) | 
+                (~df.is_ascii) |
+                (df.name.str.len() > 2) |
                 ((df.name.str.len() == 2) & (df.country_code == 'US')) |
                 ((df.name.str.len() == 2) & (df.country_code == 'CA')) |
                 ((df.name.str.len() == 2) & (df.is_country))
@@ -215,7 +215,7 @@ class Geocode():
                 pass
             else:
                 row['name'] = flag
-                df = df.append(row)
+                df = pd.concat([df, pd.DataFrame.from_records([row])])
 
         # Sort by priorities and drop duplicate names
         # Priorities
@@ -302,7 +302,7 @@ class Geocode():
             num_cpus = max(num_cpus, 1)
         # remove pickles from memory
         self.kp = None
-        self.geo_data = None 
+        self.geo_data = None
         log.info(f'Running decode in parallel with {num_cpus} cores')
         process_chunk_delayed = joblib.delayed(process_chunk)
         result = joblib.Parallel(n_jobs=num_cpus)(process_chunk_delayed(chunk, self) for chunk in tqdm(np.array_split(input_texts, num_cpus)))

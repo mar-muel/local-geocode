@@ -1,6 +1,6 @@
 from geocode.geocode import Geocode
 import argparse
-import sys, os
+import sys
 import logging
 import json
 
@@ -25,7 +25,7 @@ class ArgParse(object):
                 usage=USAGE_DESC)
         parser.add_argument('command', help='Subcommand to run')
         args = parser.parse_args(sys.argv[1:2])
-        if not hasattr(self, args.command): 
+        if not hasattr(self, args.command):
             print('Unrecognized command')
             parser.print_help()
             sys.exit(1)
@@ -38,14 +38,14 @@ class ArgParse(object):
         parser.add_argument('--recompute', default=False, action='store_true', help='Recompute pickles')
         args = parser.parse_args(sys.argv[2:])
         geocode = Geocode(min_population_cutoff=args.min_population_cutoff, large_city_population_cutoff=args.large_city_population_cutoff)
-        geocode.prepare(recompute=args.recompute)
+        geocode.load(recompute=args.recompute)
 
     def decode(self):
         parser = ArgParseDefault(description='Split annotated data into training and test data set')
         parser.add_argument('-i', '--input', dest='input_text', type=str, required=True, help='Input text to geocode')
         args = parser.parse_args(sys.argv[2:])
         geocode = Geocode()
-        geocode.init()
+        geocode.load()
         decoded = geocode.decode(args.input_text)
         print(json.dumps(decoded))
 
