@@ -20,11 +20,12 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)-5.5s] 
 log = logging.getLogger(__name__)
 
 class Geocode():
-    def __init__(self, min_population_cutoff=30000, large_city_population_cutoff=200000, location_types=None):
+    def __init__(self, min_population_cutoff=30000, large_city_population_cutoff=200000, location_types=None, country_code_in=[]):
         self.kp = None
         self.geo_data = None
         self.min_population_cutoff = min_population_cutoff
         self.large_city_population_cutoff = large_city_population_cutoff
+        self.country_code_in = country_code_in
         self.geo_data_field_names = ['name', 'official_name', 'country_code', 'longitude', 'latitude', 'geoname_id', 'location_type', 'population']
         self.default_location_types = ['city', 'place', 'country', 'admin1', 'admin2', 'admin3', 'admin4', 'admin5', 'admin6', 'admin_other', 'continent', 'region']
         self.location_types = self._get_location_types(location_types)
@@ -152,6 +153,11 @@ class Geocode():
                 ]
         # - remove certain administrative regions (such as zones, historical divisions, territories)
         df = df[~df.feature_code.isin(['ZN', 'PCLH', 'TERR'])]
+        # - exclude places that aren't in the country_code_in list if it's present
+        if self.country_code_in:
+            df = df[
+                (df.country_code.isin(self.country_code_in))
+                ]
 
         # Expansion of altnames
         df['official_name'] = df['name']
@@ -324,4 +330,3 @@ class Geocode():
                 continue
             _location_types.append(_t)
         return _location_types
-
