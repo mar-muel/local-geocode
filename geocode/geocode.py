@@ -153,11 +153,6 @@ class Geocode():
                 ]
         # - remove certain administrative regions (such as zones, historical divisions, territories)
         df = df[~df.feature_code.isin(['ZN', 'PCLH', 'TERR'])]
-        # - exclude places that aren't in the country_code_in list if it's present
-        if self.country_code_in:
-            df = df[
-                (df.country_code.isin(self.country_code_in))
-                ]
 
         # Expansion of altnames
         df['official_name'] = df['name']
@@ -181,9 +176,13 @@ class Geocode():
         df['is_country'] = df.feature_code.str.startswith('PCL')
         df['is_ascii'] = df.name.apply(is_ascii)
         # add "US" manually since it's missing in geonames
-        row_usa = df[df.is_country & (df.name == 'USA')].iloc[0]
-        row_usa['name'] = 'US'
-        df = pd.concat([df, pd.DataFrame.from_records([row_usa])])
+        if not self.country_code_in or "US" in self.country_code_in:
+            row_usa = df[df.is_country & (df.name == 'USA')].iloc[0]
+            row_usa['name'] = 'US'
+            df = pd.concat([df, pd.DataFrame.from_records([row_usa])])
+        # - exclude places that aren't in the country_code_in list if it's present
+        if self.country_code_in:
+            df = df[df.country_code.isin(self.country_code_in)]
         df = df[
                 (~df.is_ascii) |
                 (df.name.str.len() > 2) |
